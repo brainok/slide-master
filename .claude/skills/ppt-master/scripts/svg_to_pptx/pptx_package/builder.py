@@ -26,6 +26,7 @@ from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 
 from pptx import Presentation
+from pptx.enum.shapes import PP_PLACEHOLDER
 from pptx.util import Emu
 
 from pptx_transitions import (
@@ -4093,6 +4094,22 @@ def create_pptx_with_native_svg(
             prs.slide_height = height_emu
 
             blank_layout = prs.slide_layouts[6]
+            if pptx_structure == "flat":
+                # The bundled Blank layout has visible sample date and slide-number
+                # placeholders. Flat SVG pages provide their own footer content.
+                footer_types = {
+                    PP_PLACEHOLDER.DATE,
+                    PP_PLACEHOLDER.FOOTER,
+                    PP_PLACEHOLDER.SLIDE_NUMBER,
+                }
+                for container in (blank_layout, blank_layout.slide_master):
+                    for shape in list(container.shapes):
+                        if (
+                            shape.is_placeholder
+                            and shape.placeholder_format.type in footer_types
+                        ):
+                            element = shape._element
+                            element.getparent().remove(element)
             for _ in svg_files:
                 prs.slides.add_slide(blank_layout)
             prs.save(str(base_pptx))
